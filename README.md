@@ -120,9 +120,21 @@ The API also accepts fingerprints in the `application/vnd.blackducksoftware.bill
 
 ## Check a file manually with curl
 
-The body must be raw file text containing **300–50,000 non-whitespace characters**. Curl does not split or check files, so use a UTF-8 file within these limits. First set `BLACKDUCK_URL` and `BLACKDUCK_API_TOKEN` in your shell.
+Use this method to check one file without Python. Run the steps in order, in the same terminal window. Each step is one block to copy and paste.
 
-macOS or Linux (zsh or bash). The `python` line needs Python 3 on your `PATH`:
+The file must be UTF-8 text with **300–50,000 non-whitespace characters**. Curl does not split or check the file. The result is raw JSON in `matches.json`, not the CSV and summary reports that the script makes.
+
+### macOS or Linux (zsh or bash)
+
+**Step 1.** Set your server, API token, and file. Replace the server URL and the file path first. Type the token at the `API token:` prompt and press Enter. The token is not shown while you type.
+
+```sh
+BLACKDUCK_URL='https://your-blackduck-server'
+FILE='src/example.c'
+printf 'API token: '; stty -echo; read -r BLACKDUCK_API_TOKEN; stty echo; echo
+```
+
+**Step 2.** Exchange the API token for a bearer token. The last line prints the bearer token's length. If it prints `0`, open `auth.json` to see the error.
 
 ```sh
 curl --silent --show-error --request POST \
@@ -130,21 +142,45 @@ curl --silent --show-error --request POST \
   --header "Authorization: token $BLACKDUCK_API_TOKEN" \
   --header 'Accept: application/vnd.blackducksoftware.user-4+json' \
   --output auth.json --write-out 'HTTP %{http_code}\n'
-# Continue only if the printed status is 200; otherwise inspect auth.json.
-BEARER=$(python -c 'import json; print(json.load(open("auth.json"))["bearerToken"])')
+BEARER=$(sed -n 's/.*"bearerToken" *: *"\([^"]*\)".*/\1/p' auth.json)
+echo "Bearer token length: ${#BEARER}"
+```
+
+**Step 3.** Send the file. `HTTP 200` means success, and `matches.json` holds the matches. For any other status, `matches.json` holds the error body.
+
+```sh
 curl --silent --show-error --request POST \
   "$BLACKDUCK_URL/api/snippet-matching" \
   --header "Authorization: Bearer $BEARER" \
   --header 'Content-Type: text/plain' \
   --header 'Accept: application/vnd.blackducksoftware.bill-of-materials-6+json' \
-  --data-binary @src/example.c \
+  --data-binary "@$FILE" \
   --output matches.json --write-out 'HTTP %{http_code}\n'
-# Continue only for HTTP 200; inspect matches.json for any other status.
+```
+
+To check another file, set `FILE` to its path and run step 3 again. Copy `matches.json` first, because step 3 overwrites it.
+
+**Step 4.** Delete the credentials when you finish.
+
+```sh
 rm -f auth.json
 unset BEARER BLACKDUCK_API_TOKEN
 ```
 
-Windows PowerShell equivalents use `curl.exe` to avoid the Windows PowerShell `curl` alias:
+### Windows PowerShell
+
+The commands use `curl.exe`, because `curl` in Windows PowerShell is an alias for a different command.
+
+**Step 1.** Set your server, API token, and file. Replace the server URL and the file path first. Type the token at the `API token` prompt and press Enter. The token is not shown while you type.
+
+```powershell
+$env:BLACKDUCK_URL = 'https://your-blackduck-server'
+$file = 'src\example.c'
+$secret = Read-Host 'API token' -AsSecureString
+$env:BLACKDUCK_API_TOKEN = [System.Net.NetworkCredential]::new('', $secret).Password
+```
+
+**Step 2.** Exchange the API token for a bearer token. If the status is not 200, the error body is printed.
 
 ```powershell
 $status = curl.exe --silent --show-error --request POST `
@@ -152,26 +188,37 @@ $status = curl.exe --silent --show-error --request POST `
   --header "Authorization: token $env:BLACKDUCK_API_TOKEN" `
   --header 'Accept: application/vnd.blackducksoftware.user-4+json' `
   --output auth.json --write-out '%{http_code}'
-if ($LASTEXITCODE -ne 0 -or $status -ne '200') {
-  Get-Content auth.json
-  throw "Authentication failed: HTTP $status"
-}
-$bearer = (Get-Content auth.json -Raw | ConvertFrom-Json).bearerToken
+Write-Host "HTTP $status"
+if ($status -eq '200') { $bearer = (Get-Content auth.json -Raw | ConvertFrom-Json).bearerToken } else { Get-Content auth.json }
+```
+
+**Step 3.** Send the file. `HTTP 200` means success, and `matches.json` holds the matches. For any other status, the error body is printed.
+
+```powershell
 $status = curl.exe --silent --show-error --request POST `
   "$env:BLACKDUCK_URL/api/snippet-matching" `
   --header "Authorization: Bearer $bearer" `
   --header 'Content-Type: text/plain' `
   --header 'Accept: application/vnd.blackducksoftware.bill-of-materials-6+json' `
-  --data-binary '@src/example.c' `
+  --data-binary "@$file" `
   --output matches.json --write-out '%{http_code}'
 Write-Host "HTTP $status"
-if ($LASTEXITCODE -ne 0 -or $status -ne '200') { Get-Content matches.json }
+if ($status -ne '200') { Get-Content matches.json }
+```
+
+To check another file, set `$file` to its path and run step 3 again. Copy `matches.json` first, because step 3 overwrites it.
+
+**Step 4.** Delete the credentials when you finish.
+
+```powershell
 Remove-Item -LiteralPath auth.json
 $bearer = $null
 Remove-Item Env:BLACKDUCK_API_TOKEN
 ```
 
-`auth.json` contains a credential: protect and delete it after use. Manual curl headers can expose credentials in process listings; use the script for routine automation. Do not share authentication responses.
+### Keep the credentials safe
+
+`auth.json` contains a credential. Delete it after use, and do not share authentication responses. Other users on the same computer can see curl headers in process listings, so use the script for routine or automated checks.
 
 ## Troubleshooting
 
