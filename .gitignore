@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 sample-response.json
 blackduck-snippet-check.zip
+.venv/
