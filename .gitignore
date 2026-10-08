@@ -1,0 +1,6 @@
+local-settings.json
+snippet-output/
+__pycache__/
+*.pyc
+sample-response.json
+blackduck-snippet-check.zip

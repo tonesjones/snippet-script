@@ -1,0 +1,132 @@
+{
+  "snippetMatches": {
+    "UNKNOWN": [
+      {
+        "projectName": "GevorgMelikdjanjan/WebGoat",
+        "releaseVersion": "v8.0.0.M26",
+        "licenseDefinition": {
+          "name": "Unknown License",
+          "ownership": "UNKNOWN",
+          "licenseDisplayName": "Unknown License"
+        },
+        "matchedFilePath": "/WebGoat-c8ac054093b935f2ae50e495837aa37c330fcee6/webgoat-lessons/insecure-deserialization/src/main/java/org/owasp/webgoat/deserialization/InsecureDeserializationTask.java",
+        "regions": {
+          "sourceStartLines": [
+            19
+          ],
+          "sourceEndLines": [
+            65
+          ],
+          "matchedStartLines": [
+            36
+          ],
+          "matchedEndLines": [
+            69
+          ]
+        }
+      }
+    ],
+    "RECIPROCAL": [
+      {
+        "projectName": "WebGoat",
+        "releaseVersion": "v8.1.0",
+        "licenseDefinition": {
+          "name": "GNU General Public License v2.0 or later",
+          "spdxId": "GPL-2.0-or-later",
+          "ownership": "OPEN_SOURCE",
+          "licenseDisplayName": "GNU General Public License v2.0 or later"
+        },
+        "matchedFilePath": "/WebGoat-bd16fedb3340be337f606ec3cce055d30cff23f7/webgoat-lessons/insecure-deserialization/src/main/java/org/owasp/webgoat/deserialization/InsecureDeserializationTask.java",
+        "regions": {
+          "sourceStartLines": [
+            19
+          ],
+          "sourceEndLines": [
+            73
+          ],
+          "matchedStartLines": [
+            36
+          ],
+          "matchedEndLines": [
+            77
+          ]
+        }
+      },
+      {
+        "projectName": "WebGoat",
+        "releaseVersion": "v2023.0",
+        "licenseDefinition": {
+          "name": "GNU General Public License v2.0 or later",
+          "spdxId": "GPL-2.0-or-later",
+          "ownership": "OPEN_SOURCE",
+          "licenseDisplayName": "GNU General Public License v2.0 or later"
+        },
+        "matchedFilePath": "/WebGoat-6398d31c145918322d5570f7e1d47741e540699a/src/main/java/org/owasp/webgoat/lessons/deserialization/InsecureDeserializationTask.java",
+        "regions": {
+          "sourceStartLines": [
+            15
+          ],
+          "sourceEndLines": [
+            73
+          ],
+          "matchedStartLines": [
+            23
+          ],
+          "matchedEndLines": [
+            81
+          ]
+        }
+      },
+      {
+        "projectName": "WebGoat",
+        "releaseVersion": "v8.0.0.M26",
+        "licenseDefinition": {
+          "name": "GNU General Public License v2.0 or later",
+          "spdxId": "GPL-2.0-or-later",
+          "ownership": "OPEN_SOURCE",
+          "licenseDisplayName": "GNU General Public License v2.0 or later"
+        },
+        "matchedFilePath": "/WebGoat-c8ac054093b935f2ae50e495837aa37c330fcee6/webgoat-lessons/insecure-deserialization/src/main/java/org/owasp/webgoat/deserialization/InsecureDeserializationTask.java",
+        "regions": {
+          "sourceStartLines": [
+            19
+          ],
+          "sourceEndLines": [
+            65
+          ],
+          "matchedStartLines": [
+            36
+          ],
+          "matchedEndLines": [
+            69
+          ]
+        }
+      },
+      {
+        "projectName": "WebGoat",
+        "releaseVersion": "v2025.0",
+        "licenseDefinition": {
+          "name": "GNU General Public License v2.0 or later",
+          "spdxId": "GPL-2.0-or-later",
+          "ownership": "OPEN_SOURCE",
+          "licenseDisplayName": "GNU General Public License v2.0 or later"
+        },
+        "matchedFilePath": "/WebGoat-1d74727db6d287cae95c7c189aad05c79816f084/src/main/java/org/owasp/webgoat/lessons/deserialization/InsecureDeserializationTask.java",
+        "regions": {
+          "sourceStartLines": [
+            15
+          ],
+          "sourceEndLines": [
+            73
+          ],
+          "matchedStartLines": [
+            5
+          ],
+          "matchedEndLines": [
+            66
+          ]
+        }
+      }
+    ]
+  }
+}
