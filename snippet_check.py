@@ -2,6 +2,7 @@
 import argparse
 import csv
 import fnmatch
+import getpass
 import hashlib
 import json
 import os
@@ -235,6 +236,20 @@ def write_reports(out, rows, skipped, failed, processed):
     (out / 'summary.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
+def print_summary(rows, limit=10):
+    counts = Counter(row['license family'] for row in rows)
+    for family in FAMILIES:
+        if counts[family]:
+            print(f'{family}: {counts[family]}')
+    review = sorted({row['file'] for row in rows
+                     if row['license family'].startswith('RECIPROCAL') or row['license family'] == 'UNKNOWN'})
+    if review:
+        print('Review first (RECIPROCAL* or UNKNOWN):')
+        print('\n'.join(f'  {file}' for file in review[:limit]))
+        if len(review) > limit:
+            print(f'  ...and {len(review) - limit} more; see summary.md')
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('paths', nargs='+', help='Files or directories to check')
@@ -278,6 +293,9 @@ def main(argv=None):
         return 2 if failed else 0
     url = os.environ.get('BLACKDUCK_URL') or args.url
     token = os.environ.get('BLACKDUCK_API_TOKEN') or args.token
+    if sys.stdin.isatty():
+        url = url or input('Black Duck server URL: ').strip()
+        token = token or getpass.getpass('API token: ').strip()
     if not url or not token:
         parser.error('set BLACKDUCK_URL and BLACKDUCK_API_TOKEN, or provide --url and --token')
     parts = urlsplit(url)
@@ -320,6 +338,7 @@ def main(argv=None):
             rows.extend(file_rows)
             failed.extend(errors)
     write_reports(out, rows, skipped, failed, len(prepared))
+    print_summary(rows)
     print(f'{len(rows)} matches; {len(skipped)} skipped; {len(failed)} errors. Reports: {out}')
     if failed:
         return 2

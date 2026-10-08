@@ -26,4 +26,7 @@ Short Quick start at top (launcher → run → read results); reference material
 - Acceptance: Quick start ≤ ~10 lines per OS; no content lost; matches new behaviour.
 
 ## Status
-- [ ] 1  - [ ] 2  - [ ] 3  - [ ] 4  - [ ] 5
+- [x] 1-5 done on 2026-10-08. 19 tests pass; `run.bat samples --dry-run` checked on Windows.
+- Next: run `run.sh` on a real Mac. Nice later: timestamped output folders, `pyproject.toml`
+  entry point, quieter test output, an optional HTML report.
+- Open decisions: none.

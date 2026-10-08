@@ -1,89 +1,128 @@
 # Black Duck SCA snippet license checker
 
-Check source files for snippet matches and report the license family, license, project, release, matched path, and source/matched line regions. The Python script uses only `requests` and the standard library, and uses portable Python APIs for Windows, macOS, and Linux with Python 3.9 or later.
+`snippet_check.py` sends your source files to your Black Duck SCA server and reports every snippet match. For each match it gives the license family, license, matched project, release, matched path, and the matching line ranges.
 
-This tool does **not** evaluate conflicts against your outbound license or your organization's policies. Those decisions remain yours. For broader dependency and license-policy analysis, use a full Black Duck Detect scan with license policies. Snippet matches are evidence to review, not a complete inventory or a legal conclusion. Chunk boundaries can affect matching; no matches does not prove absence of reused code.
-
-## Prerequisites
-
-- Your Black Duck SCA server URL and network access to it.
-- An API token belonging to a user permitted to call the API.
-- Python 3.9+ and `requests`: `python -m pip install requests`.
-
-The required snippet-matching entitlement, role, and token scope are not documented in the API facts used here. Check with your administrator or Black Duck support; do not assume any particular role grants access.
-
-## Create an API token
-
-Log in, open the user menu, select **My Access Tokens**, then **Create New Token**. Choose the scope agreed with your administrator, create the token, and copy it while it is visible. Store it securely. See the [Black Duck SCA token instructions](https://docs.blackduck.com/r/blackduck/2026.7/black-duck-documentation/managing-user-access-tokens.html).
+The tool does **not** check matches against your outbound license or your organization's policies. Those decisions remain yours. Snippet matches are evidence to review, not a complete inventory or a legal conclusion. No matches does not prove that no code was reused. For full dependency and license-policy analysis, use a Black Duck Detect scan with license policies.
 
 ## Quick start
 
-Prefer environment variables; they take precedence over `--url` and `--token`. Avoid command-line tokens, which can appear in shell history or process listings. The script never intentionally logs tokens and redacts known credentials from HTTP bodies and errors.
+You need Python 3.9 or later, network access to your Black Duck SCA server, and an API token (see [Create an API token](#create-an-api-token)). The script sends source text only to your Black Duck server. Check your organization's source-sharing rules first.
 
-macOS Terminal (zsh or bash), or Linux: create a virtual environment in the extracted package folder first. Install Python 3.9+ if `python3` is unavailable or older than 3.9.
-
-```sh
-python3 --version
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install requests
-python -m unittest discover -s tests -v
-python snippet_check.py samples --dry-run
-```
-
-After activation, `python` refers to this environment. These commands require no administrator access. Enter your token at the hidden prompt:
-
-```sh
-export BLACKDUCK_URL='https://your-blackduck-server'
-BLACKDUCK_API_TOKEN=$(python -c 'import getpass; print(getpass.getpass("API token: "))')
-export BLACKDUCK_API_TOKEN
-python snippet_check.py src/example.c
-python snippet_check.py src --out-dir snippet-output
-python snippet_check.py src --dry-run
-```
-
-Windows PowerShell:
+Windows (PowerShell or Command Prompt), from the extracted folder:
 
 ```powershell
-$env:BLACKDUCK_URL = 'https://your-blackduck-server'
-$secret = Read-Host 'API token' -AsSecureString
-$env:BLACKDUCK_API_TOKEN = [System.Net.NetworkCredential]::new('', $secret).Password
-python snippet_check.py src/example.c
-python snippet_check.py src --out-dir snippet-output
-python snippet_check.py src --dry-run
+.\run.bat samples --dry-run
+.\run.bat C:\path\to\your\src
 ```
 
-CI example: configure `BLACKDUCK_URL` and a masked secret `BLACKDUCK_API_TOKEN` in your CI environment, then run:
+macOS or Linux, from the extracted folder:
 
 ```sh
-python snippet_check.py src --fail-on RECIPROCAL,RECIPROCAL_AGPL,RECIPROCAL_NETWORK,UNKNOWN
+./run.sh samples --dry-run
+./run.sh /path/to/your/src
 ```
 
-Exit codes:
+The first run creates a `.venv` folder and installs `requests`. It needs no administrator access. `--dry-run` lists the files that would be checked and makes no network calls.
 
-| Code | Default behavior | With `--fail-on` |
-| --- | --- | --- |
-| 0 | No matches | No matches in the listed families; other matches may exist |
-| 1 | Matches found | At least one match in a listed family |
-| 2 | Errors occurred | Errors occurred, even if matches were also found |
+On a real run, the script asks for your server URL and API token. The token is not shown while you type. The console then prints match counts by license family and the files to review first. Full reports go to `snippet-output/`. See [Read the results](#read-the-results).
 
-Use `python snippet_check.py --help` for all options. Examples:
+To skip the prompts, set the `BLACKDUCK_URL` and `BLACKDUCK_API_TOKEN` environment variables. CI runs must use these variables, because CI has no terminal to prompt in.
+
+To run without the launchers, install the dependency yourself and call the script:
+
+```sh
+python -m pip install -r requirements.txt
+python snippet_check.py src
+```
+
+## Create an API token
+
+Log in to Black Duck SCA, open the user menu, and select **My Access Tokens**. Select **Create New Token** and choose the scope agreed with your administrator. Copy the token while it is visible and store it securely. See the [Black Duck SCA token instructions](https://docs.blackduck.com/r/blackduck/2026.7/black-duck-documentation/managing-user-access-tokens.html).
+
+The snippet-matching entitlement, role, and token scope the API requires are not documented in the API facts used here. Check with your administrator or Black Duck support. Do not assume that a particular role grants access.
+
+## Read the results
+
+`snippet-output/` contains:
+
+- `summary.md`: match counts by license family, then the files with RECIPROCAL* or UNKNOWN matches first, then skipped and failed files.
+- `results.csv`: one row per match with file, license family, license, matched project, release, matched path, source lines, and matched lines. Multiple regions are separated by semicolons. Source lines refer to your file. Matched lines refer to the server's matched file. Cells that start like a formula get an apostrophe prefix for spreadsheet safety.
+- `raw/<filename>-<path-hash>.chunk-NNNN.json`: the server response for every completed chunk, including error responses. The path hash keeps same-named files apart. Credentials are redacted if present.
+
+Use a new output folder for each run, for example `--out-dir snippet-output-2`. In a reused folder, old raw files remain, while the CSV and summary are replaced. Raw files contain server-provided paths and metadata and can be sensitive.
+
+If a chunk fails, the reports keep the partial results and the script exits with code 2. Treat exit 2 as an incomplete check, not a clean one.
+
+The table orders families from fewer to more potential obligations. This order is a broad review priority, not a Black Duck risk score or a legal ranking. AGPL and network obligations depend on the actual license and use.
+
+| Family | Review considerations |
+| --- | --- |
+| PERMISSIVE | Generally fewer reuse conditions. Inspect notice and attribution requirements. |
+| WEAK_RECIPROCAL | Limited reciprocal obligations. Inspect the license and how the code is combined. |
+| RECIPROCAL | Broader reciprocal obligations can apply. |
+| RECIPROCAL_AGPL | Review the reported AGPL license and any network-use obligations. |
+| RECIPROCAL_NETWORK | Review the actual license's network-use obligations. |
+| UNKNOWN | The family does not show the obligations. Investigate promptly. |
+
+## Reference
+
+### Credentials
+
+The script reads the server URL and token in this order: the `BLACKDUCK_URL` and `BLACKDUCK_API_TOKEN` environment variables, then `--url` and `--token`, then an interactive prompt. The prompt appears only when the script runs in a terminal. Without a terminal, missing values are an error.
+
+Avoid `--token`. Command-line tokens can appear in shell history and process listings. The script never intentionally logs tokens and redacts known credentials from HTTP bodies and errors.
+
+### Options
+
+Run `python snippet_check.py --help` for all options. Example:
 
 ```sh
 python snippet_check.py src --include '*.java,*.py' --exclude '*generated*' --workers 4 --timeout 90
 ```
 
-Include/exclude options accept comma-separated globs and can be repeated. Globs match case-sensitive filenames or absolute paths with forward slashes; matching directories are pruned for exclusions. Default includes cover common source extensions; default exclusions skip `.git`, `node_modules`, `.venv`, and `__pycache__`. Explicit files also respect include/exclude filters. Use `--include '*'` to include other extensions. Processing is sequential by default; `--workers` enables concurrent files.
+`--include` and `--exclude` take comma-separated globs and can be repeated. Globs match case-sensitive filenames, or absolute paths with forward slashes. The script does not search excluded directories. The default includes cover common source extensions. The default excludes are `.git`, `node_modules`, `.venv`, and `__pycache__`. Files named on the command line also go through these filters. Use `--include '*'` to include all extensions.
 
-UTF-8 (including UTF-8 BOM) is supported. NUL bytes, other binary control characters, and non-UTF-8 files are skipped. Convert other text encodings to UTF-8 first. Files below 300 non-whitespace characters are skipped with a `too small` note. Large files are split on line boundaries into requests of at most 50,000 non-whitespace characters. A final short chunk overlaps preceding lines; identical report rows are deduplicated. Source lines are mapped to original file positions. A line that itself exceeds 50,000 characters, or a tail that cannot be extended within the limit, is reported as an error. No invalid-size chunk is sent.
+The script checks one file at a time by default. `--workers` checks several files at once.
 
-Dry-run needs no URL or token and makes no network calls. It lists eligible files with byte sizes, non-whitespace counts, and chunk counts, plus skipped/failed notes. It creates no reports. An empty selection is not an error: review the listing before CI use.
+`--dry-run` needs no URL or token and makes no network calls. It lists eligible files with byte sizes, non-whitespace counts, and chunk counts, plus skipped and failed files. It creates no reports. An empty selection is not an error, so review the listing before you use the command in CI.
 
-## Manual method: curl
+### Exit codes
 
-The body must be raw file text containing **300–50,000 non-whitespace characters**. Curl does not split or validate files; use a valid-size UTF-8 file. Set the environment variables as above.
+| Code | Default behavior | With `--fail-on` |
+| --- | --- | --- |
+| 0 | No matches | No matches in the listed families. Other matches can exist. |
+| 1 | Matches found | At least one match in a listed family |
+| 2 | Errors occurred | Errors occurred, even if matches were also found |
 
-macOS Terminal (zsh or bash), or Linux (activate the Python environment above first):
+CI example, with `BLACKDUCK_URL` and a masked secret `BLACKDUCK_API_TOKEN` set in the CI environment:
+
+```sh
+python snippet_check.py src --fail-on RECIPROCAL,RECIPROCAL_AGPL,RECIPROCAL_NETWORK,UNKNOWN
+```
+
+### File handling and chunks
+
+The script reads UTF-8 files, including UTF-8 with a BOM. It skips files that contain NUL bytes or other binary control characters, and files that are not valid UTF-8. Convert other encodings to UTF-8 first.
+
+Files with fewer than 300 non-whitespace characters are skipped with a `too small` note. Larger files are split on line boundaries into requests of at most 50,000 non-whitespace characters. A short final chunk overlaps the lines before it, and the script removes identical report rows. Source line numbers map back to the original file.
+
+A single line longer than 50,000 non-whitespace characters is reported as an error. So is a final chunk that cannot reach 300 characters within the limit. The script never sends a chunk outside the limits.
+
+### Response format
+
+The parser was checked against an HTTP 200 response from a real server on October 8, 2026, and against the saved Black Duck REST API 2026.4.0 example. It expects `snippetMatches` grouped by family, with `projectName`, `releaseVersion`, `licenseDefinition`, `matchedFilePath`, and `regions` that hold source and matched start and end arrays. Extra fields are ignored. Missing required fields, malformed regions, or unknown families cause an error instead of a false no-match result.
+
+### Data handling and fingerprints
+
+The script sends raw source text to your configured Black Duck server and to no other service. TLS verification is on by default.
+
+The API also accepts fingerprints in the `application/vnd.blackducksoftware.bill-of-materials-6+json` format, made with a **Black Duck-provided algorithm**. If you cannot send source, ask Black Duck about this option. `fingerprint_payload()` in the script marks where that support would go. Fingerprinting is not implemented, and no algorithm is invented.
+
+## Check a file manually with curl
+
+The body must be raw file text containing **300–50,000 non-whitespace characters**. Curl does not split or check files, so use a UTF-8 file within these limits. First set `BLACKDUCK_URL` and `BLACKDUCK_API_TOKEN` in your shell.
+
+macOS or Linux (zsh or bash). The `python` line needs Python 3 on your `PATH`:
 
 ```sh
 curl --silent --show-error --request POST \
@@ -134,52 +173,24 @@ Remove-Item Env:BLACKDUCK_API_TOKEN
 
 `auth.json` contains a credential: protect and delete it after use. Manual curl headers can expose credentials in process listings; use the script for routine automation. Do not share authentication responses.
 
-## Reading results
-
-`--out-dir` contains:
-
-- `raw/<filename>-<path-hash>.chunk-NNNN.json`: response body for every completed chunk, including error bodies. Non-JSON bodies retain this filename. Credentials are redacted if present. Names use a path hash to distinguish same-named files. Reports use absolute original file paths; chunk numbering follows source order.
-- `results.csv`: file, license family, license, matched project, release, matched path, source lines, matched lines. Multiple regions are separated by semicolons. Source lines refer to the original file; matched lines refer to the server's matched file. Formula-like cells are prefixed with an apostrophe for spreadsheet safety.
-- `summary.md`: match-record counts by family; files with RECIPROCAL* or UNKNOWN matches first; skipped and failed files. Partial results remain available when a chunk fails. Exit 2 means the overall result is incomplete.
-
-Use a fresh output directory for each run: old raw files in a reused directory are retained, while CSV and summary are replaced. Raw files contain server-provided paths and metadata and may be sensitive.
-
-The table below orders families by a broad review priority from lower to higher potential obligations. This is not a Black Duck risk score or a universally applicable legal ranking; AGPL/network obligations depend on the actual license and use. UNKNOWN has uncertain obligations, so review it promptly.
-
-| Family | Review considerations |
-| --- | --- |
-| PERMISSIVE | Generally fewer reuse conditions; inspect notice and attribution requirements. |
-| WEAK_RECIPROCAL | Limited reciprocal obligations; inspect the license and how code is combined. |
-| RECIPROCAL | Broader reciprocal obligations may apply. |
-| RECIPROCAL_AGPL | Review the reported AGPL license and applicable network-use obligations. |
-| RECIPROCAL_NETWORK | Review the actual license's network-use obligations. |
-| UNKNOWN | License obligations cannot be determined from this family; investigate. |
-
-The parser was verified against an HTTP 200 response from a real server on October 8, 2026, and the saved Black Duck REST API 2026.4.0 example. It expects `snippetMatches` grouped by family with `projectName`, `releaseVersion`, `licenseDefinition`, `matchedFilePath`, and `regions` containing source/matched start/end arrays. Extra fields are ignored. Missing required fields, malformed regions, or unfamiliar families produce an error rather than a false no-match result; inspect the raw JSON.
-
-## Data handling and fingerprints
-
-Raw source text is sent to your configured Black Duck server. Check your organization's source-sharing rules before running the tool. It does not upload to any other service. TLS verification is enabled by default.
-
-The API also accepts fingerprints using `application/vnd.blackducksoftware.bill-of-materials-6+json`, generated with a **Black Duck-provided algorithm**. Customers unable to send source should ask Black Duck about this option. The script's `fingerprint_payload()` is a clearly marked extension point; fingerprinting is not implemented and no algorithm is invented.
-
 ## Troubleshooting
 
-- **401:** The script prints the status/body and re-authenticates once per chunk, then retries with the new bearer. If it persists, ask your administrator to check the token and permissions. The endpoint's undocumented error semantics are not assumed.
-- **TLS or proxy:** Keep verification enabled. `requests` supports `HTTPS_PROXY`/`HTTP_PROXY` and `REQUESTS_CA_BUNDLE` for your organization's proxy/CA configuration. Check DNS, connectivity, and trust with your administrator. `--insecure` disables verification and prints a warning; use it only for a deliberate temporary diagnostic.
-- **Too small/large:** The limits count non-whitespace characters, not bytes. Short files are skipped. Large files are chunked as described above; very long individual lines can fail. Manual curl calls must meet the limits themselves.
-- **Non-200:** Only HTTP 200 is documented as success. The script prints other statuses and response bodies without guessing their meaning. It retries 429 and 5xx as an operational strategy, with three retries and 1/2/4-second backoff; network exceptions use the same strategy. Redirects are not followed. Exhausted retries result in exit 2. Contact support with the redacted body and status.
-- **Parsing error:** Inspect the raw response and compare its shape with the fixture. Reports stay partial and exit 2; do not treat that as a clean check.
+- **401:** The script prints the status and body, authenticates again once per chunk, and retries with the new bearer token. If the 401 persists, ask your administrator to check the token and its permissions.
+- **TLS or proxy:** Keep verification on. `requests` reads `HTTPS_PROXY`, `HTTP_PROXY`, and `REQUESTS_CA_BUNDLE` for your organization's proxy and CA settings. Check DNS, connectivity, and trust with your administrator. `--insecure` turns verification off and prints a warning. Use it only for a short, deliberate test.
+- **Too small or too large:** The limits count non-whitespace characters, not bytes. See [File handling and chunks](#file-handling-and-chunks). Manual curl calls must meet the limits themselves.
+- **Other HTTP status:** Only HTTP 200 is documented as success. The script prints other statuses and bodies without guessing their meaning. It retries 429, 5xx, and network errors three times, waiting 1, 2, then 4 seconds. It does not follow redirects. When the retries run out, the script exits with code 2. Send the redacted body and status to support.
+- **Parse error:** Compare the raw response with `tests/fixtures/snippet-response.json`. The reports stay partial and the script exits with code 2.
+- **The launcher cannot create `.venv`:** Install Python 3.9 or later. On Windows, select **Add python.exe to PATH** in the installer. Then delete any partial `.venv` folder and run again.
 
-## Platform verification
+## Platform support
 
-The script and tests use cross-platform Python APIs; there are no Windows-only runtime dependencies. Paths containing spaces or Unicode are supported; quote paths in shell commands, for example:
+The script and tests use only cross-platform Python. Paths with spaces or Unicode work. Quote them in shell commands:
 
 ```sh
-python snippet_check.py "/Users/yourname/My Project/src" --dry-run
+./run.sh "/Users/yourname/My Project/src" --dry-run
 ```
 
-Tests cover LF (macOS/Linux) and CRLF (Windows) line endings, UTF-8 BOM files, Unicode filenames, paths with spaces, directory filtering, and report generation. The automated suite and live API check were run on Windows. A native macOS run has not yet been performed. On a Mac, run the setup, tests, and sample dry-run above before using your server credentials; then run one known source file and inspect the generated reports.
+The tests cover LF and CRLF line endings, UTF-8 BOM files, Unicode filenames, paths with spaces, directory filtering, and report generation. The test suite and a live API check were run on Windows. No native macOS run has been done yet. On a Mac, run the tests and the sample dry run before you enter your credentials. Then check one known source file and inspect the reports.
 
 ## Tests
 
@@ -187,4 +198,4 @@ Tests cover LF (macOS/Linux) and CRLF (Windows) line endings, UTF-8 BOM files, U
 python -m unittest discover -s tests -v
 ```
 
-Tests use a saved live-response fixture and mocked HTTP only; they never contact a server. They cover counting, chunk limits/overlap, source line mapping, defensive parsing, retry/re-authentication, report generation, exit codes, and dry-run behavior.
+The tests use a saved live-response fixture and mocked HTTP. They never contact a server.

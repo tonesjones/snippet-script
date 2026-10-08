@@ -167,4 +167,36 @@ class Tests(unittest.TestCase):
                 saved = list(csv.DictReader(f))
             self.assertEqual(saved[0]['file'], str(source))
 
+    @patch('snippet_check.requests.post')
+    @patch('snippet_check.getpass.getpass', return_value='secret')
+    @patch('builtins.input', return_value='https://example.invalid')
+    @patch('snippet_check.sys.stdin')
+    def test_prompts_for_missing_credentials(self, stdin, ask, getpw, post):
+        stdin.isatty.return_value = True
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as tmp,                 patch.dict('os.environ', {}, clear=True), patch('sys.stdout'):
+            p = Path(tmp) / 'a.py'; p.write_text('x' * 400)
+            post.side_effect = [response(payload={'bearerToken': 'bearer'}), response()]
+            self.assertEqual(sc.main(['--out-dir', str(Path(tmp) / 'out'), str(p)]), 1)
+            ask.assert_called_once(); getpw.assert_called_once()
+            self.assertEqual(post.call_args_list[0].args[0], 'https://example.invalid/api/tokens/authenticate')
+
+    @patch('snippet_check.sys.stdin')
+    def test_no_prompt_without_tty(self, stdin):
+        stdin.isatty.return_value = False
+        with patch.dict('os.environ', {}, clear=True), patch('sys.stderr'),                 tempfile.TemporaryDirectory(dir=Path(__file__).parent) as tmp:
+            p = Path(tmp) / 'a.py'; p.write_text('x' * 400)
+            with self.assertRaises(SystemExit):
+                sc.main([str(p)])
+
+    def test_console_summary(self):
+        rows = [{'file': f'f{i}', 'license family': 'RECIPROCAL'} for i in range(12)]
+        rows.append({'file': 'p', 'license family': 'PERMISSIVE'})
+        with patch('builtins.print') as out:
+            sc.print_summary(rows)
+        text = '\n'.join(str(c.args[0]) for c in out.call_args_list)
+        self.assertIn('RECIPROCAL: 12', text)
+        self.assertIn('PERMISSIVE: 1', text)
+        self.assertIn('...and 2 more', text)
+        self.assertNotIn('  p', text)
+
 if __name__ == '__main__': unittest.main()
