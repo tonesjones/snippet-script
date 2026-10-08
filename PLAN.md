@@ -27,6 +27,8 @@ Short Quick start at top (launcher → run → read results); reference material
 
 ## Status
 - [x] 1-5 done on 2026-10-08. 19 tests pass; `run.bat samples --dry-run` checked on Windows.
+- Manual curl section split into numbered copy-paste steps per OS; tested against a mock server
+  in Git Bash, PowerShell 7, and Windows PowerShell 5.1.
 - Next: run `run.sh` on a real Mac. Nice later: timestamped output folders, `pyproject.toml`
   entry point, quieter test output, an optional HTML report.
 - Open decisions: none.
